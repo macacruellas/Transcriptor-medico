@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcripción Médica IA</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2236;
+            --bg-card-hover: #1f2a42;
+            --border: #2a3550;
+            --text-primary: #e8ecf4;
+            --text-secondary: #8896b0;
+            --text-muted: #5a6a85;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.15);
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.15);
+            --warning: #f59e0b;
+            --warning-glow: rgba(245, 158, 11, 0.15);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.15);
+            --purple: #8b5cf6;
+            --purple-glow: rgba(139, 92, 246, 0.15);
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed; top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
+            z-index: -1;
+        }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+
+        /* Header */
+        .header { text-align: center; margin-bottom: 40px; }
+        .header-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 16px; background: var(--accent-glow);
+            border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 100px;
+            font-size: 12px; font-weight: 500; color: var(--accent);
+            letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 20px;
+        }
+        .header-badge::before {
+            content: ''; width: 6px; height: 6px;
+            background: var(--accent); border-radius: 50%; animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .header h1 {
+            font-size: 32px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header p { color: var(--text-secondary); font-size: 15px; font-weight: 300; }
+
+        /* Tabs */
+        .tabs {
+            display: flex; gap: 4px; margin-bottom: 32px;
+            background: var(--bg-secondary); border-radius: 12px; padding: 4px;
+        }
+        .tab {
+            flex: 1; padding: 12px 20px; border: none; border-radius: 10px;
+            background: transparent; color: var(--text-secondary);
+            font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .tab:hover { color: var(--text-primary); }
+        .tab.active { background: var(--bg-card); color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Panel */
+        .panel {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 28px; margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+        .panel:hover { border-color: rgba(59, 130, 246, 0.15); }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .panel-title {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 14px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.8px; color: var(--text-secondary);
+        }
+        .panel-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+        .panel-title .dot.active { background: var(--success); box-shadow: 0 0 8px var(--success-glow); }
+        .panel-content { font-size: 15px; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap; min-height: 60px; }
+        .panel-content.empty { color: var(--text-muted); font-style: italic; font-weight: 300; }
+        .panel.informe { border-color: rgba(16, 185, 129, 0.2); background: linear-gradient(135deg, var(--bg-card) 0%, rgba(16, 185, 129, 0.03) 100%); }
+
+        /* Protocol selector */
+        .protocol-selector { margin-bottom: 32px; }
+        .protocol-selector label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .protocol-select {
+            width: 100%; padding: 14px 16px; background: var(--bg-card);
+            border: 1px solid var(--border); border-radius: 12px;
+            color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 15px;
+            cursor: pointer; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238896b0'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 16px center;
+        }
+        .protocol-select:focus { outline: none; border-color: var(--accent); }
+        .protocol-select option { background: var(--bg-secondary); color: var(--text-primary); }
+
+        .protocol-preview {
+            margin-top: 16px; padding: 16px; background: var(--bg-secondary);
+            border: 1px solid var(--border); border-radius: 10px;
+            font-family: 'JetBrains Mono', monospace; font-size: 13px;
+            line-height: 1.6; color: var(--text-secondary); white-space: pre-wrap;
+            max-height: 300px; overflow-y: auto;
+        }
+
+        /* Record Section */
+        .record-section { display: flex; flex-direction: column; align-items: center; margin-bottom: 32px; }
+        .record-btn {
+            width: 120px; height: 120px; border-radius: 50%;
+            border: 3px solid var(--border); background: var(--bg-card);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .record-btn:hover { border-color: var(--accent); background: var(--bg-card-hover); box-shadow: 0 0 40px var(--accent-glow); }
+        .record-btn.recording { border-color: var(--danger); box-shadow: 0 0 40px var(--danger-glow); animation: rec-pulse 1.5s infinite; }
+        @keyframes rec-pulse { 0%, 100% { box-shadow: 0 0 20px var(--danger-glow); } 50% { box-shadow: 0 0 50px var(--danger-glow); } }
+        .record-btn .mic-icon { width: 36px; height: 36px; fill: var(--text-secondary); transition: fill 0.3s ease; }
+        .record-btn:hover .mic-icon { fill: var(--accent); }
+        .record-btn.recording .mic-icon { fill: var(--danger); }
+        .record-btn .stop-icon { display: none; width: 28px; height: 28px; background: var(--danger); border-radius: 4px; }
+        .record-btn.recording .mic-icon { display: none; }
+        .record-btn.recording .stop-icon { display: block; }
+        .record-label { margin-top: 16px; font-size: 14px; color: var(--text-secondary); }
+        .record-timer { display: none; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 20px; color: var(--danger); font-weight: 500; }
+        .record-timer.visible { display: block; }
+
+        /* Textarea / Editor */
+        .editor {
+            width: 100%; min-height: 200px; background: var(--bg-secondary);
+            border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+            font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.7;
+            color: var(--text-primary); resize: vertical; transition: border-color 0.3s ease;
+        }
+        .editor:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+
+        /* Input fields */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-input {
+            width: 100%; padding: 12px 16px; background: var(--bg-secondary);
+            border: 1px solid var(--border); border-radius: 10px;
+            color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 15px;
+        }
+        .form-input:focus { outline: none; border-color: var(--accent); }
+
+        /* Buttons */
+        .btn-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 14px 28px; border: none; border-radius: 12px;
+            font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-hover); box-shadow: 0 4px 24px var(--accent-glow); transform: translateY(-1px); }
+        .btn-warning { background: var(--warning); color: #1a1a1a; }
+        .btn-warning:hover:not(:disabled) { box-shadow: 0 4px 24px var(--warning-glow); transform: translateY(-1px); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover:not(:disabled) { box-shadow: 0 4px 24px var(--success-glow); transform: translateY(-1px); }
+        .btn-purple { background: var(--purple); color: white; }
+        .btn-purple:hover:not(:disabled) { box-shadow: 0 4px 24px var(--purple-glow); transform: translateY(-1px); }
+        .btn-outline { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+        .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+        .btn-danger-outline { background: transparent; color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+        .btn-danger-outline:hover { border-color: var(--danger); background: var(--danger-glow); }
+        .btn-sm { padding: 8px 16px; font-size: 13px; }
+        .btn svg { width: 18px; height: 18px; }
+
+        .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .spinner.visible { display: block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .status { text-align: center; padding: 12px; font-size: 13px; color: var(--text-secondary); display: none; }
+        .status.visible { display: block; }
+        .status.error { color: var(--danger); }
+        .status.success { color: var(--success); }
+
+        .copy-btn {
+            padding: 6px 14px; background: transparent; border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-secondary); font-family: 'DM Sans', sans-serif;
+            font-size: 12px; cursor: pointer; transition: all 0.2s ease;
+        }
+        .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .copy-btn.copied { border-color: var(--success); color: var(--success); }
+
+        .hint { text-align: center; padding: 10px; font-size: 13px; color: var(--text-muted); font-style: italic; }
+
+        /* Protocol cards */
+        .protocol-card {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px 20px; margin-bottom: 12px;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+        .protocol-card:hover { border-color: rgba(139, 92, 246, 0.3); }
+        .protocol-card-name { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+        .protocol-card-fields { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .protocol-card-actions { display: flex; gap: 8px; }
+
+        .new-report-section { text-align: center; margin-top: 16px; padding-top: 20px; border-top: 1px solid var(--border); }
+
+        @media (max-width: 640px) {
+            .container { padding: 24px 16px; }
+            .header h1 { font-size: 24px; }
+            .record-btn { width: 100px; height: 100px; }
+            .panel { padding: 20px; }
+            .btn-row { flex-direction: column; align-items: stretch; }
+            .tabs { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-badge">Sistema de Dictado</div>
+        <h1>Transcripción Médica IA</h1>
+        <p>Dictá el informe por voz. La IA lo completa según tu protocolo.</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('dictado')">Dictar Informe</button>
+        <button class="tab" onclick="switchTab('protocolos')">Mis Protocolos</button>
+    </div>
+
+    <!-- ==================== TAB: DICTADO ==================== -->
+    <div class="tab-content active" id="tab-dictado">
+
+        <!-- Protocol Selector -->
+        <div class="protocol-selector">
+            <label>Protocolo a usar</label>
+            <select class="protocol-select" id="protocolSelect" onchange="mostrarPreview()">
+                <option value="">Sin protocolo (formato libre)</option>
+            </select>
+            <div class="protocol-preview" id="protocolPreview" style="display:none;"></div>
+        </div>
+
+        <!-- Record -->
+        <div class="record-section">
+            <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
+                <svg class="mic-icon" viewBox="0 0 24 24">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/>
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                </svg>
+                <div class="stop-icon"></div>
+            </button>
+            <span class="record-label" id="recordLabel">Presioná para grabar</span>
+            <span class="record-timer" id="recordTimer">00:00</span>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <!-- Transcripción -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title"><span class="dot" id="transcripcionDot"></span> Transcripción Cruda</div>
+                <button class="copy-btn" id="copyTransBtn" onclick="copiarTranscripcion()" style="display:none;">Copiar</button>
+            </div>
+            <div class="panel-content empty" id="transcripcionTexto">Acá va a aparecer el texto tal cual lo dictaste...</div>
+        </div>
+
+        <div class="btn-row" id="actionButtons" style="display:none;">
+            <button class="btn btn-primary" id="generateBtn" onclick="generarInforme()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <span id="generateBtnText">Generar Informe con IA</span>
+                <div class="spinner" id="generateSpinner"></div>
+            </button>
+            <button class="btn btn-outline" onclick="limpiarTranscripcion()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                Limpiar
+            </button>
+        </div>
+
+        <div class="hint" id="reRecordHint" style="display:none;">Podés volver a grabar para agregar más texto</div>
+
+        <!-- Informe -->
+        <div class="panel informe" id="informePanel" style="display:none;">
+            <div class="panel-header">
+                <div class="panel-title"><span class="dot active"></span> Informe Médico Final</div>
+                <button class="copy-btn" id="copyBtn" onclick="copiarInforme()">Copiar</button>
+            </div>
+            <textarea class="editor" id="informeEditor" placeholder="El informe aparecerá acá..."></textarea>
+            <div class="btn-row" style="margin-top:20px; margin-bottom:0;">
+                <button class="btn btn-warning" id="reprocessBtn" onclick="reprocesarInforme()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+                    <span id="reprocessBtnText">Re-procesar</span>
+                    <div class="spinner" id="reprocessSpinner"></div>
+                </button>
+                <button class="btn btn-success" onclick="dictarCorrecciones()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+                    Dictar correcciones
+                </button>
+            </div>
+            <div class="new-report-section">
+                <button class="btn btn-outline" onclick="nuevoInforme()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15h6"/></svg>
+                    Nuevo informe
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TAB: PROTOCOLOS ==================== -->
+    <div class="tab-content" id="tab-protocolos">
+
+        <div class="btn-row" style="justify-content: flex-end; margin-bottom: 20px;">
+            <button class="btn btn-purple" onclick="mostrarFormProtocolo()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                Nuevo protocolo
+            </button>
+        </div>
+
+        <!-- Lista de protocolos -->
+        <div id="protocolosList"></div>
+
+        <!-- Form nuevo protocolo (oculto por defecto) -->
+        <div class="panel" id="protocoloForm" style="display:none;">
+            <div class="panel-header">
+                <div class="panel-title"><span class="dot" style="background: var(--purple);"></span> Nuevo Protocolo</div>
+            </div>
+
+            <div class="form-group">
+                <label>Nombre del protocolo</label>
+                <input class="form-input" id="nuevoNombre" placeholder="Ej: Informe Citopatológico - CIGOR">
+            </div>
+
+            <div class="form-group">
+                <label>Plantilla (usá ___ donde va el texto que se dicta)</label>
+                <textarea class="editor" id="nuevaPlantilla" style="min-height:300px;" placeholder="Pegá acá tu protocolo/plantilla.&#10;&#10;Usá ___ (tres guiones bajos) en los campos que el médico va a completar dictando.&#10;&#10;Ejemplo:&#10;PACIENTE: ___&#10;EDAD: ___&#10;HALLAZGOS:&#10;___"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Campos a completar (separados por coma)</label>
+                <input class="form-input" id="nuevosCampos" placeholder="Ej: Paciente, Edad, Hallazgos, Conclusión">
+            </div>
+
+            <div class="btn-row" style="justify-content: flex-end;">
+                <button class="btn btn-outline" onclick="cancelarProtocolo()">Cancelar</button>
+                <button class="btn btn-purple" onclick="guardarProtocolo()">Guardar protocolo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let protocolos = [];
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let timerInterval = null;
+    let seconds = 0;
+    let transcripcionActual = "";
+    let modoCorreccion = false;
+
+    // ================================================
+    // INIT
+    // ================================================
+    window.addEventListener("DOMContentLoaded", () => { cargarProtocolos(); });
+
+    // ================================================
+    // TABS
+    // ================================================
+    function switchTab(tab) {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+        document.getElementById("tab-" + tab).classList.add("active");
+        event.target.classList.add("active");
+        if (tab === "protocolos") renderProtocolos();
+    }
+
+    // ================================================
+    // PROTOCOLOS
+    // ================================================
+    async function cargarProtocolos() {
+        const res = await fetch("/protocolos");
+        protocolos = await res.json();
+        actualizarSelect();
+        renderProtocolos();
+    }
+
+    function actualizarSelect() {
+        const select = document.getElementById("protocolSelect");
+        select.innerHTML = '<option value="">Sin protocolo (formato libre)</option>';
+        protocolos.forEach(p => {
+            select.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+        });
+    }
+
+    function renderProtocolos() {
+        const container = document.getElementById("protocolosList");
+        if (protocolos.length === 0) {
+            container.innerHTML = '<div class="hint">No hay protocolos guardados. Creá uno nuevo.</div>';
+            return;
+        }
+        container.innerHTML = protocolos.map(p => `
+            <div class="protocol-card">
+                <div>
+                    <div class="protocol-card-name">${p.nombre}</div>
+                    <div class="protocol-card-fields">${p.campos ? p.campos.length + " campos" : "Sin campos definidos"}</div>
+                </div>
+                <div class="protocol-card-actions">
+                    <button class="btn btn-outline btn-sm" onclick="verProtocolo(${p.id})">Ver</button>
+                    <button class="btn btn-danger-outline btn-sm" onclick="eliminarProtocolo(${p.id})">Eliminar</button>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    function verProtocolo(id) {
+        const p = protocolos.find(x => x.id === id);
+        if (p) {
+            alert("--- " + p.nombre + " ---\n\n" + p.plantilla + "\n\nCampos: " + (p.campos || []).join(", "));
+        }
+    }
+
+    async function eliminarProtocolo(id) {
+        if (!confirm("¿Seguro que querés eliminar este protocolo?")) return;
+        await fetch("/protocolos/" + id, { method: "DELETE" });
+        await cargarProtocolos();
+    }
+
+    function mostrarFormProtocolo() {
+        document.getElementById("protocoloForm").style.display = "block";
+        document.getElementById("nuevoNombre").focus();
+    }
+
+    function cancelarProtocolo() {
+        document.getElementById("protocoloForm").style.display = "none";
+        document.getElementById("nuevoNombre").value = "";
+        document.getElementById("nuevaPlantilla").value = "";
+        document.getElementById("nuevosCampos").value = "";
+    }
+
+    async function guardarProtocolo() {
+        const nombre = document.getElementById("nuevoNombre").value.trim();
+        const plantilla = document.getElementById("nuevaPlantilla").value.trim();
+        const camposStr = document.getElementById("nuevosCampos").value.trim();
+
+        if (!nombre || !plantilla) { alert("Completá al menos el nombre y la plantilla."); return; }
+
+        const campos = camposStr ? camposStr.split(",").map(c => c.trim()) : [];
+
+        await fetch("/protocolos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nombre, plantilla, campos })
+        });
+
+        cancelarProtocolo();
+        await cargarProtocolos();
+    }
+
+    function mostrarPreview() {
+        const select = document.getElementById("protocolSelect");
+        const preview = document.getElementById("protocolPreview");
+
+        if (!select.value) { preview.style.display = "none"; return; }
+
+        const p = protocolos.find(x => x.id === parseInt(select.value));
+        if (p) {
+            preview.textContent = p.plantilla;
+            preview.style.display = "block";
+        }
+    }
+
+    function getProtocoloSeleccionado() {
+        const select = document.getElementById("protocolSelect");
+        if (!select.value) return null;
+        return protocolos.find(x => x.id === parseInt(select.value)) || null;
+    }
+
+    // ================================================
+    // GRABACIÓN
+    // ================================================
+    async function toggleRecording() {
+        if (isRecording) stopRecording(); else startRecording();
+    }
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(audioChunks, { type: "audio/webm" });
+                enviarAudio(blob);
+                stream.getTracks().forEach(t => t.stop());
+            };
+            mediaRecorder.start();
+            isRecording = true;
+            document.getElementById("recordBtn").classList.add("recording");
+            document.getElementById("recordLabel").textContent = "Grabando... Presioná para detener";
+            document.getElementById("recordTimer").classList.add("visible");
+            startTimer();
+            showStatus("", "");
+        } catch (e) {
+            showStatus("No se pudo acceder al micrófono.", "error");
+        }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+            isRecording = false;
+            document.getElementById("recordBtn").classList.remove("recording");
+            document.getElementById("recordLabel").textContent = "Presioná para grabar";
+            document.getElementById("recordTimer").classList.remove("visible");
+            stopTimer();
+            showStatus("Transcribiendo audio con Whisper...", "");
+        }
+    }
+
+    function startTimer() {
+        seconds = 0; updateTimerDisplay();
+        timerInterval = setInterval(() => { seconds++; updateTimerDisplay(); }, 1000);
+    }
+    function stopTimer() { clearInterval(timerInterval); }
+    function updateTimerDisplay() {
+        document.getElementById("recordTimer").textContent =
+            String(Math.floor(seconds/60)).padStart(2,"0") + ":" + String(seconds%60).padStart(2,"0");
+    }
+
+    // ================================================
+    // ENVIAR AUDIO
+    // ================================================
+    async function enviarAudio(blob) {
+        const formData = new FormData();
+        formData.append("audio", blob, "grabacion.webm");
+        try {
+            const res = await fetch("/transcribir", { method: "POST", body: formData });
+            const data = await res.json();
+            if (data.error) { showStatus("Error: " + data.error, "error"); return; }
+
+            if (modoCorreccion) {
+                modoCorreccion = false;
+                reprocesarConVoz(data.transcripcion);
+                return;
+            }
+
+            transcripcionActual = transcripcionActual ? transcripcionActual + " " + data.transcripcion : data.transcripcion;
+            document.getElementById("transcripcionTexto").textContent = transcripcionActual;
+            document.getElementById("transcripcionTexto").classList.remove("empty");
+            document.getElementById("transcripcionDot").classList.add("active");
+            document.getElementById("actionButtons").style.display = "flex";
+            document.getElementById("reRecordHint").style.display = "block";
+            document.getElementById("copyTransBtn").style.display = "block";
+            showStatus("Transcripción completada. Podés grabar más o generar el informe.", "success");
+        } catch (e) {
+            showStatus("Error: " + e.message, "error");
+        }
+    }
+
+    // ================================================
+    // GENERAR INFORME
+    // ================================================
+    async function generarInforme() {
+        if (!transcripcionActual) return;
+        const btn = document.getElementById("generateBtn");
+        const btnText = document.getElementById("generateBtnText");
+        const spinner = document.getElementById("generateSpinner");
+
+        btn.disabled = true; btnText.textContent = "Procesando..."; spinner.classList.add("visible");
+        showStatus("Generando informe con IA...", "");
+
+        const protocolo = getProtocoloSeleccionado();
+
+        try {
+            const res = await fetch("/interpretar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ texto: transcripcionActual, protocolo: protocolo })
+            });
+            const data = await res.json();
+            if (data.error) { showStatus("Error: " + data.error, "error"); return; }
+
+            document.getElementById("informeEditor").value = data.informe;
+            document.getElementById("informePanel").style.display = "block";
+            showStatus("Informe generado. Podés editarlo, dictar correcciones o re-procesar.", "success");
+            document.getElementById("informePanel").scrollIntoView({ behavior: "smooth" });
+        } catch (e) {
+            showStatus("Error: " + e.message, "error");
+        } finally {
+            btn.disabled = false; btnText.textContent = "Generar Informe con IA"; spinner.classList.remove("visible");
+        }
+    }
+
+    // ================================================
+    // CORRECCIONES
+    // ================================================
+    async function reprocesarInforme() {
+        const informe = document.getElementById("informeEditor").value;
+        if (!informe) return;
+        const btn = document.getElementById("reprocessBtn");
+        const btnText = document.getElementById("reprocessBtnText");
+        const spinner = document.getElementById("reprocessSpinner");
+
+        btn.disabled = true; btnText.textContent = "Procesando..."; spinner.classList.add("visible");
+
+        const protocolo = getProtocoloSeleccionado();
+
+        try {
+            const res = await fetch("/interpretar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    texto: "INFORME ACTUAL (editado por el médico):\n" + informe +
+                           "\n\nINSTRUCCIÓN: Revisá, corregí formato y ortografía. Mantené contenido y estructura.",
+                    protocolo: protocolo
+                })
+            });
+            const data = await res.json();
+            if (data.error) { showStatus("Error: " + data.error, "error"); return; }
+            document.getElementById("informeEditor").value = data.informe;
+            showStatus("Informe re-procesado.", "success");
+        } catch (e) {
+            showStatus("Error: " + e.message, "error");
+        } finally {
+            btn.disabled = false; btnText.textContent = "Re-procesar"; spinner.classList.remove("visible");
+        }
+    }
+
+    function dictarCorrecciones() {
+        modoCorreccion = true;
+        showStatus("Grabá las correcciones. Ej: 'Cambiá neumonía por bronquitis'", "");
+        document.getElementById("recordLabel").textContent = "Dictá las correcciones";
+        document.getElementById("recordBtn").scrollIntoView({ behavior: "smooth" });
+    }
+
+    async function reprocesarConVoz(instruccion) {
+        const informe = document.getElementById("informeEditor").value;
+        showStatus("Aplicando correcciones...", "");
+        const protocolo = getProtocoloSeleccionado();
+        try {
+            const res = await fetch("/interpretar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    texto: "INFORME ACTUAL:\n" + informe +
+                           "\n\nCORRECCIÓN DEL MÉDICO: " + instruccion +
+                           "\n\nAplicá la corrección y devolvé el informe completo actualizado.",
+                    protocolo: protocolo
+                })
+            });
+            const data = await res.json();
+            if (data.error) { showStatus("Error: " + data.error, "error"); return; }
+            document.getElementById("informeEditor").value = data.informe;
+            showStatus('Corrección aplicada: "' + instruccion + '"', "success");
+        } catch (e) {
+            showStatus("Error: " + e.message, "error");
+        }
+        document.getElementById("recordLabel").textContent = "Presioná para grabar";
+    }
+
+    // ================================================
+    // UTILIDADES
+    // ================================================
+    function showStatus(msg, type) {
+        const el = document.getElementById("status");
+        el.textContent = msg; el.className = "status";
+        if (msg) { el.classList.add("visible"); if (type) el.classList.add(type); }
+    }
+
+    function copiarInforme() {
+        navigator.clipboard.writeText(document.getElementById("informeEditor").value).then(() => {
+            const b = document.getElementById("copyBtn"); b.textContent = "¡Copiado!"; b.classList.add("copied");
+            setTimeout(() => { b.textContent = "Copiar"; b.classList.remove("copied"); }, 2000);
+        });
+    }
+
+    function copiarTranscripcion() {
+        navigator.clipboard.writeText(transcripcionActual).then(() => {
+            const b = document.getElementById("copyTransBtn"); b.textContent = "¡Copiado!"; b.classList.add("copied");
+            setTimeout(() => { b.textContent = "Copiar"; b.classList.remove("copied"); }, 2000);
+        });
+    }
+
+    function limpiarTranscripcion() {
+        transcripcionActual = "";
+        document.getElementById("transcripcionTexto").textContent = "Acá va a aparecer el texto tal cual lo dictaste...";
+        document.getElementById("transcripcionTexto").classList.add("empty");
+        document.getElementById("transcripcionDot").classList.remove("active");
+        document.getElementById("actionButtons").style.display = "none";
+        document.getElementById("reRecordHint").style.display = "none";
+        document.getElementById("copyTransBtn").style.display = "none";
+    }
+
+    function nuevoInforme() {
+        limpiarTranscripcion();
+        document.getElementById("informePanel").style.display = "none";
+        document.getElementById("informeEditor").value = "";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        showStatus("Listo para un nuevo informe.", "success");
+    }
+</script>
+</body>
+</html>
